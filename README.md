@@ -1,5 +1,5 @@
 # Cifar10 
-Building a Convolutional Neural Network for the cifar10 object recognition dataset as a introductory PyTorch exercise.
+Building a Convolutional Neural Network for the cifar10 object recognition dataset as an introductory PyTorch exercise.
 
 ## Model Architecture
 TODO
