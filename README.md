@@ -9,7 +9,7 @@ The training set contains 50,000 images and the testing set contains 10,000.
 
 ## Model Architecture
 2 convolutional Layers with ReLU activation functions, and 2x2 Max Pooling Layers after each
-4 Fully Connected Linear Layers with ReLU activation functions
+3 Fully Connected Linear Layers with ReLU activation functions
 
 ## Accuracy and Loss plots
 TODO

@@ -1,7 +1,7 @@
 import torch 
 import torchvision
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
@@ -12,31 +12,36 @@ class Net(nn.Module):
     def __init__(self):
         # Initialize the nn.Module
         super().__init__()
-        # Input of 3 channels, first convolutional layer
-        # 6 out channels, 5x5 Kernel
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        # Max pooling layer
-        self.pool = nn.MaxPool2d(2, 2)
-        # Second convolutional Layer
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        # Fully Connected layers
-        self.fc1 = nn.Linear(16 * 5 * 5, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, 84)
-        self.fc4 = nn.Linear(84, 10) # 10 classes in the output
-        # Dont use a Softmax layer, as nn.CrossEntropyLoss() applies one itself
-    
+        # Convolutional Layers
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, out_channels=64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, out_channels=128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(128, out_channels=512, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)        
+        )
+        # Fully Connected Layers
+        self.lin = nn.Sequential(
+            nn.Linear(8192, 4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(4096, 4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(4096, 10)
+        )
+
     def forward(self, x):
         ''' Forward pass through the network '''
-        y_hat = self.pool(F.relu(self.conv1(x)))
-        y_hat = self.pool(F.relu(self.conv2(y_hat)))
-        y_hat = torch.flatten(y_hat, 1)
-        y_hat = F.relu(self.fc1(y_hat))
-        y_hat = F.relu(self.fc2(y_hat))
-        y_hat = F.relu(self.fc3(y_hat))
-        y_hat = self.fc4(y_hat)
+        x = self.conv(x)
+        x = torch.flatten(x, 1)
+        x = self.lin(x)
 
-        return y_hat
+        return x
 
 # Test and Train Functions
 def train(model: Net, epoch: int, loss_fn, opt, data_loader, device, verbose: bool):
@@ -58,6 +63,7 @@ def train(model: Net, epoch: int, loss_fn, opt, data_loader, device, verbose: bo
         # Print loss every 3000 minibatches
         if batch_idx % 3000 == 2999 and verbose:
             print(f"Epoch: {epoch+1}, Minibatch: {batch_idx+1} : Loss = {(epoch_loss/3000):.5f}")
+            epoch_loss = 0.0
 
 def test(model, data_loader, device, verbose: bool):
     ''' A single validation step '''
@@ -75,7 +81,7 @@ def test(model, data_loader, device, verbose: bool):
             correct += (y_hat == y).sum().item()
 
     if verbose:
-        print(f"Accuracy: {100*correct // total}")
+        print(f"Accuracy: {100*correct // total}%")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -89,9 +95,9 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", "--v", help="Print warnings and model training progress", action='store_true', dest="verbose")
     parser.add_argument("--train_path", type=str, help="The path to the directory in which the Training Dataset will be stored. Default=(./data/)", default="./data/")
     parser.add_argument("--test_path", type=str, help="The path to the directory in which the Testing Dataset will be stored. Default=(./data/)", default="./data/")
-    parser.add_argument("--checkpoints", type=str, help="The path to which model checkpoints will be saved. Default=(./models/)", default="./models/")
-    parser.add_argument("--train_batch", type=int, help="The training batch size", required=True)
-    parser.add_argument("--test_batch", type=int, help="The testing batch size", required=True)
+    parser.add_argument("--checkpoints", type=str, help="The path to which model checkpoints will be saved. Default=(./models/)", default="./models/trained_model.pt")
+    parser.add_argument("--train_batch", type=int, help="The training batch size", default=8)
+    parser.add_argument("--test_batch", type=int, help="The testing batch size", default=8)
     parser.add_argument("--learning_rate", "--lr", type=float, help="The Learning rate used by the Optimizer. Default=0.001", default=0.001, dest='lr')
     parser.add_argument("--momentum", "--m", type=float, help="The momentum used by SGD (if used). Default=0.9", default=0.9, dest="momentum")
     parser.add_argument("--serialize", "--s", help="Whether or not to save the model to the --checkpoints directory.", action='store_true', dest="serialize")
@@ -129,13 +135,13 @@ if __name__ == "__main__":
 
     training_loader = DataLoader(
         dataset=train_set,
-        batch_size=args.training_batch,
+        batch_size=args.train_batch,
         shuffle=True
     )
 
     testing_loader = DataLoader(
         dataset=test_set,
-        batch_size=args.testing_batch,
+        batch_size=args.test_batch,
         shuffle=True
     )
 
@@ -147,8 +153,10 @@ if __name__ == "__main__":
     loss_function = nn.CrossEntropyLoss()
 
     # Train the Network
+    if args.verbose:
+        print("Training model")
     test(model, testing_loader, device, args.verbose) # random network
-    for epoch in range(args.epochs+1):
+    for epoch in range(args.epochs):
         train(model, epoch, loss_function, optimizer, training_loader, device, args.verbose)
         test(model, testing_loader, device, args.verbose) 
 
