@@ -29,10 +29,12 @@ class Net(nn.Module):
             nn.Linear(8192, 4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(4096, 4096),
+            nn.Linear(4096, 1096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(4096, 10)
+            nn.Linear(1096, 512),
+            nn.ReLU(),
+            nn.Linear(512, 10)
         )
 
     def forward(self, x):
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_batch", type=int, help="The training batch size", default=8)
     parser.add_argument("--test_batch", type=int, help="The testing batch size", default=8)
     parser.add_argument("--learning_rate", "--lr", type=float, help="The Learning rate used by the Optimizer. Default=0.001", default=0.001, dest='lr')
-    parser.add_argument("--momentum", "--m", type=float, help="The momentum used by SGD (if used). Default=0.9", default=0.9, dest="momentum")
+    parser.add_argument("--momentum", "--m", type=float, help="The momentum used by SGD/Adam (if used). Default=0.9", default=0.9, dest="momentum")
     parser.add_argument("--serialize", "--s", help="Whether or not to save the model to the --checkpoints directory.", action='store_true', dest="serialize")
 
     args = parser.parse_args()
