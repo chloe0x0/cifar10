@@ -13,15 +13,18 @@ class Net(nn.Module):
         # Initialize the nn.Module
         super().__init__()
         # Input of 3 channels, first convolutional layer
+        # 6 out channels, 5x5 Kernel
         self.conv1 = nn.Conv2d(3, 6, 5)
         # Max pooling layer
         self.pool = nn.MaxPool2d(2, 2)
         # Second convolutional Layer
         self.conv2 = nn.Conv2d(6, 16, 5)
         # Fully Connected layers
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10) # 10 classes in the output
+        self.fc1 = nn.Linear(16 * 5 * 5, 512)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, 84)
+        self.fc4 = nn.Linear(84, 10) # 10 classes in the output
+        # Dont use a Softmax layer, as nn.CrossEntropyLoss() applies one itself
     
     def forward(self, x):
         ''' Forward pass through the network '''
@@ -30,17 +33,20 @@ class Net(nn.Module):
         y_hat = torch.flatten(y_hat, 1)
         y_hat = F.relu(self.fc1(y_hat))
         y_hat = F.relu(self.fc2(y_hat))
-        y_hat = self.fc3(y_hat)
+        y_hat = F.relu(self.fc3(y_hat))
+        y_hat = self.fc4(y_hat)
 
         return y_hat
 
 # Test and Train Functions
-def train(model: Net, epoch: int, loss_fn, opt, data_loader, verbose: bool):
+def train(model: Net, epoch: int, loss_fn, opt, data_loader, device, verbose: bool):
     ''' A single training step '''
     model.train()
 
     epoch_loss = 0.0
     for batch_idx, (X, y) in enumerate(data_loader):
+        # Put feature and label tensors on the device
+        X, y = X.to(device), y.to(device)
         opt.zero_grad()
         pred = model(X)
         loss = loss_fn(pred, y)
@@ -53,7 +59,7 @@ def train(model: Net, epoch: int, loss_fn, opt, data_loader, verbose: bool):
         if batch_idx % 3000 == 2999 and verbose:
             print(f"Epoch: {epoch+1}, Minibatch: {batch_idx+1} : Loss = {(epoch_loss/3000):.5f}")
 
-def test(model, loss_fn, data_loader, verbose: bool):
+def test(model, data_loader, device, verbose: bool):
     ''' A single validation step '''
     model.eval()
 
@@ -62,6 +68,7 @@ def test(model, loss_fn, data_loader, verbose: bool):
 
     with torch.no_grad():
         for (X, y) in data_loader:
+            X, y = X.to(device), y.to(device)
             pred = model(X)
             _, y_hat = torch.max(pred.data, 1)
             total += y.size(0)
@@ -78,25 +85,23 @@ if __name__ == "__main__":
     
     # Command Line Arguments
 
-    parser.add_argument("--epochs", "--e", type=int, help="Number of epochs to train for. Default=15", default=15)
-    parser.add_argument("--verbose", "--v", help="Print warnings and model training progress", action='store_true')
+    parser.add_argument("--epochs", "--e", type=int, help="Number of epochs to train for. Default=15", default=15, dest="epochs")
+    parser.add_argument("--verbose", "--v", help="Print warnings and model training progress", action='store_true', dest="verbose")
     parser.add_argument("--train_path", type=str, help="The path to the directory in which the Training Dataset will be stored. Default=(./data/)", default="./data/")
     parser.add_argument("--test_path", type=str, help="The path to the directory in which the Testing Dataset will be stored. Default=(./data/)", default="./data/")
     parser.add_argument("--checkpoints", type=str, help="The path to which model checkpoints will be saved. Default=(./models/)", default="./models/")
     parser.add_argument("--train_batch", type=int, help="The training batch size", required=True)
     parser.add_argument("--test_batch", type=int, help="The testing batch size", required=True)
     parser.add_argument("--learning_rate", "--lr", type=float, help="The Learning rate used by the Optimizer. Default=0.001", default=0.001, dest='lr')
-    parser.add_argument("--momentum", "--m", type=float, help="The momentum used by SGD (if used). Default=0.9", default=0.9)
+    parser.add_argument("--momentum", "--m", type=float, help="The momentum used by SGD (if used). Default=0.9", default=0.9, dest="momentum")
+    parser.add_argument("--serialize", "--s", help="Whether or not to save the model to the --checkpoints directory.", action='store_true', dest="serialize")
 
     args = parser.parse_args()
 
-    # Print warnings and model training progress
-    verbose = args.verbose.lower() == "y"
-
     # Get device to train model on
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    if device.type == "cpu" and verbose:
-        print("Warning: Training model on CPU.")
+    if device.type == "cpu" and args.verbose:
+        print("Warning: Could not find CUDA, training model on CPU.")
 
     # Load datasets
 
@@ -142,7 +147,12 @@ if __name__ == "__main__":
     loss_function = nn.CrossEntropyLoss()
 
     # Train the Network
-    test(model, loss_function, testing_loader, verbose) # random network
+    test(model, testing_loader, device, args.verbose) # random network
     for epoch in range(args.epochs+1):
-        train(model, epoch, loss_function, optimizer, training_loader, verbose)
-        test(model, loss_function, testing_loader, verbose) 
+        train(model, epoch, loss_function, optimizer, training_loader, device, args.verbose)
+        test(model, testing_loader, device, args.verbose) 
+
+    # Serialize the trained model
+    if args.serialize:
+        if args.verbose: print(f"Saving trained model to {args.checkpoints}")
+        torch.save(model.state_dict(), args.checkpoints)
