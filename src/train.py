@@ -1,7 +1,6 @@
 import torch 
 import torchvision
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
@@ -22,19 +21,16 @@ class Net(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(128, out_channels=512, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)        
         )
         # Fully Connected Layers
         self.lin = nn.Sequential(
             nn.Linear(8192, 4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(4096, 1096),
+            nn.Linear(4096, 4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(1096, 512),
-            nn.ReLU(),
-            nn.Linear(512, 10)
+            nn.Linear(4096, 10),
         )
 
     def forward(self, x):
@@ -135,16 +131,20 @@ if __name__ == "__main__":
 
     # Create DataLoaders
 
+    use_pin_memory = device.type == "cuda"
+
     training_loader = DataLoader(
         dataset=train_set,
         batch_size=args.train_batch,
-        shuffle=True
+        shuffle=True,
+        pin_memory=use_pin_memory
     )
 
     testing_loader = DataLoader(
         dataset=test_set,
         batch_size=args.test_batch,
-        shuffle=True
+        shuffle=True,
+        pin_memory=use_pin_memory
     )
 
     # Create model
