@@ -15,16 +15,23 @@ class Net(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(3, out_channels=64, kernel_size=3, padding=1),
             nn.ReLU(),
+            nn.Conv2d(64, out_channels=64, kernel_size=3, padding=1),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, out_channels=128, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(128, out_channels=512, kernel_size=3, padding=1),
+            nn.Conv2d(128, out_channels=128, kernel_size=3, padding=1),
             nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(128, out_channels=256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, out_channels=256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
         # Fully Connected Layers
         self.lin = nn.Sequential(
-            nn.Linear(8192, 4096),
+            nn.Linear(4096, 4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(4096, 4096),
