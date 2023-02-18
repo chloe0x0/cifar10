@@ -100,8 +100,8 @@ if __name__ == "__main__":
         cm = confusion_matrix(true, pred)
         df = pd.DataFrame(
             cm/np.sum(cm, axis=1),
-            index=[i for i in classes],
-            columns = [i for i in classes]
+            index=list(classes),
+            columns=list(classes)
         )
 
         plt.figure(figsize=(12,7))
